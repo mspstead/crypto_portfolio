@@ -1,6 +1,7 @@
 import requests as req
 import pandas as pd
 import datetime
+import matplotlib.pyplot as plt
 
 trades_df = pd.read_csv('trades.csv')
 trades_df['DateOfTrade']= pd.to_datetime(trades_df['DateOfTrade'])
@@ -52,15 +53,41 @@ for key,val in coin_ids.items():
     prices_url = prices_base_url + val + '/market_chart/range?vs_currency=' + vs_currency + coin_start_epoch + coin_end_epoch
 
     coin_prices = req.get(prices_url).json().get('prices')
-    coins_data[key] = coin_prices
 
-print(coins_data)
+    coin_price_dates={}
+    for price in coin_prices:
+        date = datetime.datetime.utcfromtimestamp(price[0]/1000).strftime('%Y-%m-%d')
+        value = price[1]
+        coin_price_dates[date] = value
+
+    coins_data[key] = coin_price_dates
 
 composition_start = composition['StartDate'].min()
 curr_day = datetime.datetime.now()
 
+def calculate_portfolio_value(day,composition):
+
+    composition_on_day = composition[(composition['StartDate']<=day) & (composition['EndDate']>day)]
+
+    mcap = 0
+    for coin in composition_on_day['CCY'].values:
+        prices = coins_data.get(coin)
+        price_on_day = prices.get(day.strftime('%Y-%m-%d'))
+        amount = composition_on_day[composition_on_day['CCY']==coin]['Amount'].values[0]
+
+        mcap = mcap + (price_on_day*amount)
+
+    return mcap
+
 delta = curr_day - composition_start
+portfolio_values = []
 for i in range(0,delta.days):
     day = composition_start + datetime.timedelta(days=i)
-    composition_on_day = composition[(composition['StartDate']<=day) & (composition['EndDate']>day)]
-    print(composition_on_day)
+    daily_portfolio_value = calculate_portfolio_value(day,composition)
+    portfolio_values.append([day,daily_portfolio_value])
+
+print(portfolio_values)
+port_headers = ['Date','Value']
+df = pd.DataFrame(columns=port_headers,data=portfolio_values)
+
+
