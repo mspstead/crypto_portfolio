@@ -33,7 +33,28 @@ for trade in trades_df.itertuples():
                 new_trade_df = pd.DataFrame({'StartDate': [date_of_trade], 'EndDate': [end_date], 'CCY': [ccy], 'Amount': [new_amount]})
                 composition = pd.concat([composition, new_trade_df])
 
-time_delta = 'daily'
+
+coin_ids = {'ETH':'ethereum','BTC':'bitcoin',
+            'XRP':'ripple','ADA':'cardano','DOGE':'dogecoin',
+            'BLZ':'bluzelle','SKL':'skale','SHIB':'shiba-inu'}
+vs_currency = 'gbp'
+prices_base_url = 'https://api.coingecko.com/api/v3/coins/'
+
+coins_data = {}
+for key,val in coin_ids.items():
+
+    coin_start = composition[composition['CCY']==key]['StartDate'].min()
+    coin_end = composition[composition['CCY']==key]['EndDate'].max()
+
+    coin_start_epoch = '&from=' + str(coin_start.timestamp())
+    coin_end_epoch = '&to=' + str(coin_end.timestamp())
+
+    prices_url = prices_base_url + val + '/market_chart/range?vs_currency=' + vs_currency + coin_start_epoch + coin_end_epoch
+
+    coin_prices = req.get(prices_url).json().get('prices')
+    coins_data[key] = coin_prices
+
+print(coins_data)
 
 composition_start = composition['StartDate'].min()
 curr_day = datetime.datetime.now()
